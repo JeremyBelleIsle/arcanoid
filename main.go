@@ -3,46 +3,77 @@ package main
 import (
 	"ARCANOID/ball"
 	"ARCANOID/block"
+	debugmode "ARCANOID/debug_mode"
 	"ARCANOID/paddel"
+	"ARCANOID/power_up"
+
 	"log"
-	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
 type Game struct {
-	paddel paddel.Paddel
-	level  int
-	ball   ball.Ball
-	blocks []block.Block
+	paddel    paddel.Paddel
+	balls     []ball.Ball
+	power_ups []power_up.PowerUp
+	blocks    []block.Block
+	modeDebug bool
+	level     int
 }
 
+var motTapé = ""
+
 func (g *Game) Update() error {
+	debugmode.CheckWordTyped(&motTapé)
+	debugmode.DoDebug(motTapé, &g.paddel.X, g.paddel.W, g.balls[0].X, g.paddel.Speed)
+
 	g.paddel.Input()
 
-	g.ball.Mouvement()
+	for i := range g.balls {
+		ball := &g.balls[i]
 
-	g.ball.Coll(g.paddel, &g.blocks)
+		ball.Mouvement()
 
-	if block.Win(g.blocks) {
-		g.level++
-		time.Sleep(1500 * time.Millisecond)
-		block.LoadLevel(g.level, &g.blocks)
+		ball.Coll(g.paddel, &g.blocks, &g.power_ups)
 	}
 
-	if g.ball.Lose() {
+	for i := range g.power_ups {
+		p := &g.power_ups[i]
+
+		p.Mouv()
+	}
+
+	switch power_up.Coll(g.paddel, &g.power_ups) {
+	case "+1 ball":
+		ball.Init(&g.balls)
+	}
+
+	if block.LevelIsEnd(g.blocks) {
+		g.level++
+		block.LoadLevel(g.level, &g.blocks)
+		ball.ResetBallsForTheNextLevel(&g.balls)
+	}
+
+	if ball.Lose(g.balls) {
 		panic("YOU LOSE")
 	}
 	return nil
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
+
 	g.paddel.Draw(screen)
 
-	g.ball.Draw(screen)
+	for _, ball := range g.balls {
+		ball.Draw(screen)
+	}
 
 	for _, b := range g.blocks {
 		b.Draw(screen)
+	}
+
+	for _, p := range g.power_ups {
+		p.Draw(screen)
 	}
 }
 
@@ -55,18 +86,20 @@ func main() {
 	ebiten.SetWindowTitle("ARCANOID!!!")
 
 	g := &Game{
-		level: 1,
+		level: 2,
 	}
 
 	g.paddel.Init()
 
 	println("Paddel init|check")
 
-	g.ball.Init()
+	ball.Init(&g.balls)
 
 	println("Ball init|check")
 
 	block.LoadLevel(g.level, &g.blocks)
+
+	power_up.InitImgs()
 
 	println("Level load|check")
 	if err := ebiten.RunGame(g); err != nil {

@@ -1,6 +1,7 @@
 package block
 
 import (
+	"ARCANOID/paddel"
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -17,7 +18,7 @@ func LoadLevel(level int, blocks *[]Block) {
 	switch level {
 	case 1:
 		for i := 0; i < 10; i++ {
-			for j := 0; j < 3; j++ {
+			for j := 0; j < 2; j++ {
 				*blocks = append(*blocks, Block{
 					X:          float64(i*60 + 20),
 					Y:          float64(j*25 + 10),
@@ -28,16 +29,30 @@ func LoadLevel(level int, blocks *[]Block) {
 				})
 			}
 		}
+
+		*blocks = append(*blocks, Block{X: paddel.ScreenWidth/2 - 25, Y: 85, W: 50, H: 20, Speciality: "+1 ball", clr: color.RGBA{255, 255, 0, 255}})
+
 	case 2:
 		for i := 0; i < 10; i++ {
-			*blocks = append(*blocks, Block{
-				X:          float64(i*60 + 20),
-				Y:          10,
-				W:          50,
-				H:          20,
-				Speciality: "normal",
-				clr:        color.RGBA{211, 211, 211, 255},
-			})
+			if i > 0 && (i+1)%2 == 0 {
+				*blocks = append(*blocks, Block{
+					X:          float64(i*60 + 20),
+					Y:          10,
+					W:          50,
+					H:          20,
+					Speciality: "+1 ball",
+					clr:        color.RGBA{255, 255, 0, 255},
+				})
+			} else {
+				*blocks = append(*blocks, Block{
+					X:          float64(i*60 + 20),
+					Y:          10,
+					W:          50,
+					H:          20,
+					Speciality: "normal",
+					clr:        color.RGBA{211, 211, 211, 255},
+				})
+			}
 			*blocks = append(*blocks, Block{
 				X:          float64(i*60 + 20),
 				Y:          35,
@@ -162,7 +177,7 @@ func LoadLevel(level int, blocks *[]Block) {
 	}
 }
 
-func Win(blocks []Block) bool {
+func LevelIsEnd(blocks []Block) bool {
 	return len(blocks) == 0
 }
 

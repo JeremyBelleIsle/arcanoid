@@ -3,6 +3,7 @@ package ball
 import (
 	"ARCANOID/block"
 	"ARCANOID/paddel"
+	"ARCANOID/power_up"
 	"image/color"
 	"math"
 	"math/rand"
@@ -14,36 +15,46 @@ import (
 )
 
 type Ball struct {
-	x, y, r float64
+	X, y, r float64
 	vx, vy  float64
 	clr     color.RGBA
 }
 
-func (b *Ball) Init() {
-	b.x = paddel.ScreenWidth / 2
-	b.y = paddel.ScreenHeight / 2
-	b.r = 13
-	b.vx = rand.Float64() + 1.7
-	b.vy = rand.Float64() + 1.7
-	b.clr = color.RGBA{255, 0, 0, 255}
+func Init(balls *[]Ball) {
+	vy := float64(rand.Intn(2) + 3)
+	vy = -vy
+
+	*balls = append(*balls, Ball{X: paddel.ScreenWidth / 2, y: paddel.ScreenHeight / 2, r: 13, vx: float64(rand.Intn(2)) + 3, vy: vy, clr: color.RGBA{255, 0, 0, 255}})
+
+	if (*balls)[0].vx < .4 && (*balls)[0].vx > -.4 {
+		(*balls)[0].vx *= rand.Float64() + 1
+	}
 }
 
 func (b *Ball) Mouvement() {
-	b.x += b.vx
+	b.X += b.vx
 	b.y += b.vy
 }
 
-func (b *Ball) Coll(p paddel.Paddel, blocks *[]block.Block) {
+func ResetBallsForTheNextLevel(balls *[]Ball) {
+	*balls = []Ball{}
+
+	Init(balls)
+}
+
+func (b *Ball) Coll(p paddel.Paddel, blocks *[]block.Block, power_ups *[]power_up.PowerUp) {
 	// paddel coll
 
-	if gameutil.CircleRectCollision(b.x, b.y, b.r, p.X, p.Y, p.W, p.H) {
+	if gameutil.CircleRectCollision(b.X, b.y, b.r, p.X, p.Y, p.W, p.H) {
 		b.vy = -b.vy
+
+		b.vx /= rand.Float64() + .5
 	}
 	// window coll
 
-	if b.x-(b.r/2) >= paddel.ScreenWidth {
+	if b.X+b.vx >= paddel.ScreenWidth {
 		b.vx = -b.vx
-	} else if b.x-(b.r/2) <= 0 {
+	} else if b.X-(b.r/2)-b.vx <= 0 {
 		b.vx = math.Abs(b.vx)
 	}
 
@@ -53,11 +64,11 @@ func (b *Ball) Coll(p paddel.Paddel, blocks *[]block.Block) {
 	// blocks coll
 
 	for i, bl := range *blocks {
-		if gameutil.CircleRectCollision(b.x, b.y, b.r, bl.X, bl.Y, bl.W, bl.H) {
+		if gameutil.CircleRectCollision(b.X, b.y, b.r, bl.X, bl.Y, bl.W, bl.H) {
 			blockCenterX := bl.X + bl.W/2
 			blockCenterY := bl.Y + bl.H/2
 
-			distX := math.Abs(b.x - blockCenterX)
+			distX := math.Abs(b.X - blockCenterX)
 			distY := math.Abs(b.y - blockCenterY)
 
 			overlapX := (bl.W / 2) + b.r - distX
@@ -65,7 +76,7 @@ func (b *Ball) Coll(p paddel.Paddel, blocks *[]block.Block) {
 
 			if overlapX < overlapY {
 				// X
-				if b.x < blockCenterX {
+				if b.X < blockCenterX {
 					b.vx = -math.Abs(b.vx)
 				} else {
 					b.vx = math.Abs(b.vx)
@@ -74,13 +85,18 @@ func (b *Ball) Coll(p paddel.Paddel, blocks *[]block.Block) {
 				// Y
 				if b.y < blockCenterY {
 					b.vy = -math.Abs(b.vy)
+
+					b.vx *= rand.Float64() + .5
 				} else {
 					b.vy = math.Abs(b.vy)
+
+					b.vx *= rand.Float64() + .5
 				}
 			}
 
 			switch bl.Speciality {
 			case "+1 ball":
+				*power_ups = power_up.Spawn(*power_ups, bl.X, bl.Y, "+1 ball")
 			case "pallet extender":
 			}
 
@@ -91,10 +107,20 @@ func (b *Ball) Coll(p paddel.Paddel, blocks *[]block.Block) {
 	}
 }
 
-func (b *Ball) Lose() bool {
-	return b.y > paddel.ScreenHeight+160
+func Lose(balls []Ball) bool {
+	lose := true
+
+	for _, b := range balls {
+		if b.y < paddel.ScreenHeight {
+			lose = false
+
+			break
+		}
+	}
+
+	return lose
 }
 
 func (b *Ball) Draw(screen *ebiten.Image) {
-	vector.DrawFilledCircle(screen, float32(b.x), float32(b.y), float32(b.r), b.clr, false)
+	vector.DrawFilledCircle(screen, float32(b.X), float32(b.y), float32(b.r), b.clr, false)
 }
